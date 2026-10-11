@@ -1,0 +1,52 @@
+name: Build AuctionArena APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extract project
+        run: |
+          mkdir project
+          unzip -q AuctionArena-improved.zip -d project
+          echo "Project contents:"
+          find project -maxdepth 4 -type f | head -100
+
+      - name: Find Android project
+        run: |
+          SETTINGS=$(find project -name settings.gradle -o -name settings.gradle.kts | head -1)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: settings.gradle not found"
+            exit 1
+          fi
+
+          ANDROID_DIR=$(dirname "$SETTINGS")
+          echo "ANDROID_DIR=$ANDROID_DIR" >> "$GITHUB_ENV"
+          echo "Found: $ANDROID_DIR"
+
+      - name: Build APK
+        run: |
+          cd "$ANDROID_DIR"
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuctionArena-APK
+          path: |
+            ${{ env.ANDROID_DIR }}/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
